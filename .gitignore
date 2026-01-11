@@ -1,0 +1,19 @@
+
+# Environment variables (secrets)
+.env
+
+# Node / backend
+node_modules/
+dist/
+build/
+
+# PostgreSQL
+*.log
+
+# Flutter / Dart (if present)
+.dart_tool/
+build/
+
+# OS & editor noise
+.DS_Store
+.vscode/
