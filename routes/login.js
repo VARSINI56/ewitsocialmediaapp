@@ -77,5 +77,131 @@ router.post("/", async (req, res) => {
   }
 });
 
+/* ======================================================
+   ✅ VERIFY LOGIN OTP (NEW ROUTE — NO EXISTING CODE TOUCHED)
+   ====================================================== */
+router.post("/verify-login-otp", async (req, res) => {
+  try {
+    const { usn, otp } = req.body;
+
+    if (!usn || !otp) {
+      return res.status(400).json({ error: "USN and OTP are required." });
+    }
+
+    const result = await pool.query(
+      `SELECT otp_code, otp_expires_at, otp_attempts
+       FROM students
+       WHERE usn = $1`,
+      [usn]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Student not found." });
+    }
+
+    const student = result.rows[0];
+
+    // ❌ No attempts left
+    if (student.otp_attempts >= 3) {
+      return res.status(403).json({
+        error: "OTP attempts exhausted. Please resend OTP.",
+        attempts_left: 0,
+      });
+    }
+
+    // ❌ OTP expired
+    if (new Date(student.otp_expires_at) < new Date()) {
+      return res.status(401).json({ error: "OTP has expired. Please resend OTP." });
+    }
+
+    // ❌ OTP mismatch
+    if (student.otp_code !== otp) {
+      const updatedAttempts = student.otp_attempts + 1;
+      const attemptsLeft = 3 - updatedAttempts;
+
+      await pool.query(
+        `UPDATE students
+         SET otp_attempts = $1
+         WHERE usn = $2`,
+        [updatedAttempts, usn]
+      );
+
+      return res.status(401).json({
+        error: "Invalid OTP.",
+        attempts_left: attemptsLeft,
+      });
+    }
+
+    // ❌ OTP correct but attempts already exhausted (extra safety)
+    if (student.otp_attempts >= 3) {
+      return res.status(403).json({
+        error: "OTP no longer valid. Please resend OTP.",
+        attempts_left: 0,
+      });
+    }
+
+    // ✅ OTP verified successfully
+    await pool.query(
+      `UPDATE students
+       SET is_logged_in = TRUE,
+           otp_code = NULL,
+           otp_expires_at = NULL,
+           otp_attempts = 0
+       WHERE usn = $1`,
+      [usn]
+    );
+
+    return res.status(200).json({
+      message: "OTP verified successfully. Login complete.",
+    });
+  } catch (error) {
+    console.error("Verify login OTP error:", error);
+    return res.status(500).json({ error: "Server error during OTP verification." });
+  }
+});
+
+
+router.post("/resend-login-otp", async (req, res) => {
+  try {
+    const { usn } = req.body;
+
+    if (!usn) {
+      return res.status(400).json({ error: "USN is required." });
+    }
+
+    const result = await pool.query(
+      "SELECT * FROM students WHERE usn = $1",
+      [usn]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Student not found." });
+    }
+
+    const { otp, expiresAt } = generateOtp();
+
+    await pool.query(
+      `UPDATE students
+       SET otp_code = $1,
+           otp_expires_at = $2,
+           otp_attempts = 0,
+           is_logged_in = FALSE
+       WHERE usn = $3`,
+      [otp, expiresAt, usn]
+    );
+
+    console.log(`Resent OTP for ${usn}: ${otp}`);
+
+    return res.status(200).json({
+      message: "New OTP sent successfully. Please verify to continue.",
+      otp_for_testing: otp, // ⚠️ remove in production
+      expires_in: "5 minutes",
+    });
+  } catch (error) {
+    console.error("Resend login OTP error:", error);
+    return res.status(500).json({ error: "Server error during OTP resend." });
+  }
+});
+
+
 export default router;
- // remember to not change the working of the app .....

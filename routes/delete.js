@@ -24,7 +24,9 @@ router.delete("/delete", async (req, res) => {
     }
 
     const student = studentResult.rows[0];
-    const isMatch = await bcrypt.compare(password, student.password_hash);
+
+    // 🔑 Fix: use the correct column name for the hashed password
+    const isMatch = await bcrypt.compare(password, student.password);
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid password." });
     }

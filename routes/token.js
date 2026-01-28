@@ -59,3 +59,6 @@ router.post("/refresh", async (req, res) => {
 });
 
 module.exports = router;
+
+//“This file handles JWT token refresh and access token generation.
+// Integrate with login flow when protected routes are required.”

@@ -6,6 +6,9 @@ import authRoutes from "./routes/auth.js";
 import profileRoutes from "./routes/profile.js";
 import deleteRouter, { deleteExpiredAccounts, startDeletionScheduler } from "./routes/delete.js"; // ✅ import router too
 import pool from "./db.js";
+import logoutRouter from "./routes/logout.js";
+import loginRouter from "./routes/login.js";
+
 
 dotenv.config();
 const app = express();
@@ -18,6 +21,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/auth/delete", deleteRouter); // ✅ mount delete route here
 app.use("/api/auth", deleteRoutes);
+app.use("/api/logout", logoutRouter);
+app.use("/api/login", loginRouter);
+
+
 
 // ✅ Test DB connection
 pool.connect()
